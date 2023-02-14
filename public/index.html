@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Chat Application | Powered by Deno</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <!-- <header></header> -->
+    <main>
+        <section class="forms">
+            <form id="login-form">
+                <div>
+                    <label>Username/Email:</label>
+                    <input type="text" name="user-id">
+                </div>
+                <div>
+                    <label>Password:</label>
+                    <input type="password" name="user-password" autocomplete="off">
+                </div>
+                <button type="submit">Login</button>
+                <div>
+                    <a href="#" id="open-reg-form">Create Account</a>
+                </div>
+            </form>
+            <form id="register-form">
+                <div>
+                    <label>First Name:</label>
+                    <input type="text" name="fname">
+                </div>
+                <div>
+                    <label>Last Name:</label>
+                    <input type="text" name="lname">
+                </div>
+                <div>
+                    <label>Username/Email:</label>
+                    <input type="text" name="user-id">
+                </div>
+                <div>
+                    <label>Password:</label>
+                    <input type="password" name="user-password" autocomplete="off">
+                </div>
+                <button type="submit">Create Account</button>
+                <div>
+                    <a href="#" id="open-log-form">Login</a>
+                </div>
+            </form>
+        </section>
+        <section class="dashboard">
+            <aside>
+                <div id="top"></div>
+                <ul id="users">
+                </ul>
+                <span id="drag">Toggle</span>
+            </aside>
+            <article>
+                <ul class="chats">
+                  <li class="sent">Lorem ipsum dolor sit amet, consectetur adipisicing elit. Qui excepturi fugiat ut labore aliquid, quibusdam magnam possimus iusto sed. Harum, consequuntur numquam? Doloribus saepe reprehenderit nesciunt exercitationem, laborum officiis incidunt at sunt ad unde voluptas est, recusandae deserunt quibusdam temporibus velit harum consectetur, perspiciatis ducimus culpa! Eligendi quo tenetur fugiat nesciunt natus enim illo iusto minus, dolorum officia labore facilis laudantium dicta. Cum sequi expedita officiis rerum, eaque quasi doloremque delectus accusantium consequatur. Eius consequatur ut repellendus reprehenderit, officia saepe cupiditate fugit expedita rerum enim vitae ipsa mollitia eveniet dolorem earum. Necessitatibus voluptatem itaque assumenda cupiditate nisi similique ducimus maxime.</li>
+                  <li class="received">
+                    Lorem ipsum dolor sit amet, consectetur adipisicing elit. Architecto sunt vero quis temporibus aliquam vitae praesentium ipsa. Dolores quos quaerat laborum, nesciunt ad veniam, ipsa quia ratione corporis perspiciatis eum quisquam sapiente vitae, animi libero harum repellendus a provident vel voluptatibus ipsam aliquam laudantium voluptate? Ratione porro labore nemo voluptatem quasi reiciendis veritatis qui laudantium tempora, ullam suscipit dolorum aliquid blanditiis harum iure non doloremque mollitia aspernatur inventore, error nihil est veniam minima quaerat! Fuga nostrum ullam est quis possimus autem, quia ut quaerat error? Quidem quasi ratione totam amet? Facilis nostrum, optio similique quaerat illo molestiae nam deserunt unde!
+                  </li>
+                  <li class="sent">Lorem ipsum dolor sit amet consectetur adipisicing elit. Cupiditate obcaecati molestias hic! Iure, sed illum! Tempora, ex sit? Autem iure modi quas cupiditate fugiat! Exercitationem harum doloribus magnam tempora quasi?</li>
+                  <li class="sent">Hola</li>
+                </ul>
+                <form class="input">
+                    <input type="text" name="input-msg">
+                    <button type="submit" name="btn-send" id="btn-send">Send</button>
+                </form>
+            </article>
+        </section>
+    </main>
+    <footer></footer>
+    <script src="/js/main.js"></script>
+</body>
+</html>

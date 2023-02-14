@@ -1,0 +1,278 @@
+
+* {
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
+}
+
+html {
+    background-color: #222;
+    color: #c0c0c0;
+    font-family:Arial, Helvetica,Verdana, Geneva, Tahoma, sans-serif;
+}
+
+body {
+    height: 100vh;
+    position: relative;
+}
+
+.forms {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    height: 100vh;
+    font-size: small;
+}
+
+.forms form {
+    background-color: #444;
+    display: flex;
+    flex-direction: column;
+    width: 94%;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    line-height: 1rem;
+}
+
+.forms form div {
+    margin-top: 1rem;
+}
+
+.forms form input,
+.forms form button {
+    border: none;
+    outline: 1px solid #333;
+    height: 40px;
+    border-radius: 0.2rem;
+    padding: 0.5rem;
+}
+
+.forms form input {
+    background-color: #555;
+    color: #a0a0a0;
+}
+
+.forms form button {
+    margin-top: 1rem;
+    cursor: pointer;
+    background-color: #222;
+    color: #a0a0a0;
+}
+
+.forms form button:hover {
+    opacity: 0.8;
+    transition: all 100ms ease-in-out;
+}
+
+.forms form a {
+    color: #a0a0a0;
+    font-size: larger;
+}
+#register-form {
+    display: none;
+}
+
+.forms form div {
+    display: flex;
+    flex-direction: column;
+}
+
+/* 
+    DASHBOARD   
+*/
+
+.dashboard {
+    display: none;
+    height: 99vh;
+    font-size: normal;
+    position: relative;
+}
+
+aside {
+    transform: translateX(-92%);
+    position: absolute;
+    width: 50%;
+    background-color: #1b1b1b;
+    height: 90%;
+    padding: 0 1rem;
+    border-top-right-radius: 1rem;
+    border-bottom-right-radius: 1rem;
+    z-index: 100000;
+}
+
+aside #top {
+    display: flex;
+    justify-content:space-between;
+    align-items: center;
+    padding: 0.5rem 0.5rem 0 0.5rem;
+}
+
+#top a {
+    padding: 0.2rem 1rem;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    color: #a0a0a0;
+    text-decoration: none;
+}
+
+aside span{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    right: -30%;
+    top: 50%;
+    z-index: 100;
+    border-radius: 5%;
+    width: 30%;
+    height: 3%;
+    background-color: #000;
+    cursor: grabbing;
+    transform-origin: 0 0;
+    transform: rotate(90deg);
+    user-select: none;
+}
+
+aside ul {
+    list-style: none;
+}
+
+aside li {
+    margin-top: 1rem;
+    height: 40px;
+    background-color: #222;
+    border-radius: 0.2rem;
+    border: 1px solid #222;
+}
+
+aside li:hover {
+    border: 1px solid #a0a0a0;
+    transition: all 100ms ease-in-out;
+}
+
+aside li button {
+    padding: 0.2rem 1rem;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    color: #a0a0a0;
+    text-decoration: none;
+    background-color: #1b1b1b;
+    cursor: pointer;
+    border: none;
+    outline: none;
+    border-radius: 0.2rem;
+}
+
+article {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    border-radius: 1rem;
+}
+
+.chats {
+    background-color: #555;
+    width: 100%;
+    height: 92%;
+    border-radius: 0.4rem;
+    padding: 1rem 2rem;
+    list-style: none;
+    position: relative;
+    overflow-y: scroll;
+    scroll-behavior: smooth;
+}
+::-webkit-scrollbar {
+    width: 5%;
+  }
+
+  /* Track */
+  ::-webkit-scrollbar-track {
+    background: #555;
+  }
+  
+  /* Handle */
+  ::-webkit-scrollbar-thumb {
+    background: #888;
+  }
+  
+  /* Handle on hover */
+  ::-webkit-scrollbar-thumb:hover {
+    background: #555;
+  }
+.chats li {
+    height: auto;
+    line-height: 1rem;
+    max-width: 85%;
+    min-height: 40px;
+    border-radius: 0.3rem;
+    border: 1px solid #777;
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    margin-top: 0.4rem;
+    box-shadow: 0.5rem 1rem 2rem #1b1b1b;
+}
+.received {
+    position: relative;
+    left: 2%;
+}
+.sent {
+    background-color: #1b1b1b;
+    justify-content: flex-end;
+    transform: translateX(18%);
+ 
+}
+
+.input {
+    width: 100%;
+    height: 8%;
+    display: flex;
+    justify-content: space-between;
+}
+
+.input [name=input-msg], .input button {
+    height: 100%;
+    border: none;
+    outline: none;
+    border: 1px solid #777;
+    padding: 0 0.4rem;
+    color: #a0a0a0;
+    font-size: larger;
+}
+
+input.error {
+    border: 1px solid #8b0000;
+}
+
+.input [name=input-msg] {
+    word-break:break-all;
+    overflow: scroll;
+    width: 80%;
+    background-color: #444;
+}
+
+.input button {
+    box-sizing: unset;
+    width: 21%;
+    border: 1px solid #777;
+    background-color: #000;
+    cursor: pointer;
+}
+
+.input button:hover {
+    opacity: 0.8;
+}
+
+footer {
+    position: absolute;
+    bottom: 0;
+    padding: 1rem;
+    z-index: -10;
+}
