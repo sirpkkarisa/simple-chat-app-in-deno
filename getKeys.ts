@@ -1,3 +1,5 @@
+import { genKey } from './createKeyPair.ts';
+
 function StrToArrBuf(str) {
     const buf = new ArrayBuffer(str.length);
     const bufView = new Uint8Array(buf);
@@ -54,11 +56,18 @@ async function importPubKey(pem) {
     );
   }
 
-const privFile = await Deno.readTextFile('privKey.pem');
-const pubFile = await Deno.readTextFile('pubKey.pem');
+export let privFile;
+export let pubFile;
+export let privKey;
+export let pubKey;
 
-export const privKey = await importPrivKey(privFile);
-export const pubKey = await importPubKey(pubFile);
-
-// console.log(privKey,pubKey)
-// module.exports = {privKey,pubKey}
+try {
+   privFile = await Deno.readTextFile('privKey.pem');
+   pubFile = await Deno.readTextFile('pubKey.pem');
+   privKey = await importPrivKey(privFile);
+   pubKey = await importPubKey(pubFile);
+} catch (error) {
+  if(error.message.toLowerCase().indexOf('no such file or directory') !==-1){
+    await genKey()
+  }else console.log(error)
+}

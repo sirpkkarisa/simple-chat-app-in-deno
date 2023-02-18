@@ -76,6 +76,9 @@ function handleSocket(socket) {
             case 'user-connected':
                 socket.socketId = data.event.socketId;
                 break;
+            case 'user-left':
+                console.log(data.event)
+                break;
             default:
                 break;
         }
@@ -93,6 +96,7 @@ function handleSocket(socket) {
 
     socket.addEventListener('close',(e)=> {
        console.log('connection closed');
+       
     })
 }
 

@@ -222,9 +222,7 @@ function handleSockets(socket) {
                 try {
                     let obj = allChats.pop();
                     let [key,values] = Object.entries(obj)[0];
-                    // let values = Object.entries(obj)[1];
                     let latestChat = {};
-                        // console.log(obj,key,values)
                     values['privateChats'].push({
                         message,
                         sender: socket.socketId
@@ -260,25 +258,38 @@ function handleSockets(socket) {
                     console.error(error.message)
                 }
                 break;
+            case 'leaving':
+                console.log(data.event)
+            case 'error':
+                console.log(data.event)
             default:
                 break;
         }
     }
     socket.onerror = (e) => console.log("socket errored:", e);
-    socket.onclose = (e) => broadcast(JSON.stringify({
-        event: {
-            type:'user-left',
-            socketId:socket.socketId
+    socket.onclose = (e) => {
+        console.log(`${socket.socketId} has left`)
+        for(const user of activeUsers) {
+            if(user[1].socketId === socket.socketId) {
+                activeUsers.delete(user[0])
+            }
         }
-    }));
+
+        broadcast(JSON.stringify({
+            event: {
+                type:'user-left',
+                socketId:socket.socketId
+            }
+        }));
+    }
 }
 
 async function init(PORT: number) {
     const server = Deno.listen({port: PORT});
-    console.log(`Server is running on PORT: http://${Deno.hostname()}:${PORT}`);
+    console.log(`Server is running on PORT: http://localhost:${PORT}`);
     await initServerConnection(server);
 }
-// console.log(localStorage)
+// console.log(localStorage.getItem('users'))
 // localStorage.removeItem('chats')
 // localStorage.clear()
 await init(port);
