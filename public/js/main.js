@@ -1,4 +1,3 @@
-const footer = document.querySelector('footer');
 const drag = document.querySelector('aside span');
 const dashboard = document.querySelector('.dashboard');
 const forms = document.querySelector('.forms');
@@ -7,8 +6,6 @@ const registerForm = document.getElementById('register-form');
 const openRegForm = document.getElementById('open-reg-form');
 const openLogForm = document.getElementById('open-log-form');
 const logout = document.getElementById('logout');
-const inputMsgEl = document.querySelector('[input-msg]');
-const sendBtn = document.getElementById('btn-send');
 const msgForm = document.querySelector('form.input');
 const usersEl = document.getElementById('users');
 const topDash = document.getElementById('top');
@@ -19,7 +16,7 @@ const SERVER_ADDR = location.origin;
 let isHidden = true;
 let socket;
 
-function openPrivateChat(socketId) {
+function _openPrivateChat(socketId) {
     socket.send(JSON.stringify({
         event: {
             type: 'open-private-chat',
@@ -36,7 +33,7 @@ function updateUsers(users) {
     users.forEach(user => {
         if(thisUser !==user.username) {
             userLI += `
-        <li><button onclick="openPrivateChat('${user.socketId}')">${user.username}</button></li>
+        <li><button onclick="_openPrivateChat('${user.socketId}')">${user.username}</button></li>
         `;
         }
     });
@@ -46,7 +43,7 @@ function updateUsers(users) {
 }
 
 function handleSocket(socket) {
-    socket.addEventListener('open',(e)=> {
+    socket.addEventListener('open',()=> {
         const user = JSON.parse(localStorage.getItem('user'));
         if(user) {
             socket.send(JSON.stringify({
@@ -79,6 +76,9 @@ function handleSocket(socket) {
             case 'user-left':
                 console.log(data.event)
                 break;
+            case 'error':
+                console.log(data.event)
+                break;
             default:
                 break;
         }
@@ -94,9 +94,8 @@ function handleSocket(socket) {
         console.log('error occured')
     });
 
-    socket.addEventListener('close',(e)=> {
+    socket.addEventListener('close',()=> {
        console.log('connection closed');
-       
     })
 }
 
@@ -246,7 +245,7 @@ logout && logout.addEventListener('click',(e) =>{
 
 msgForm.addEventListener('submit',sendMsg);
 
-window.addEventListener('DOMContentLoaded',async ()=>{
+addEventListener('DOMContentLoaded', ()=>{
     const user = JSON.parse(localStorage.getItem('user'));
     if(user) {
         dashboard.style.display = 'flex';

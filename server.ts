@@ -10,7 +10,7 @@ if (Deno.args.length > 2) {
 
 async function initServerConnection(server: unkown): unkown {
     for await (const conn of server) {
-        await handleConnection(conn);
+        handleConnection(conn);
     }
 }
 
@@ -91,7 +91,7 @@ async function handleRequest(req: Request): Response {
 
             if(upgrade === 'websocket') {
                 const { socket, response } = await Deno.upgradeWebSocket(req);
-                socket.socketId = crypto.randomUUID();
+                // socket.socketId = crypto.randomUUID();
                 handleSockets(socket);
                 return response;
             }
@@ -106,7 +106,7 @@ async function handleRequest(req: Request): Response {
     return new Response(data,options);
 }
 
-async function handleConnection(conn:unkown) {
+function handleConnection(conn:unkown) {
     const httpConn = Deno.serveHttp(conn);
     (async function(){
         for await (const reqEvent of httpConn) {
@@ -162,11 +162,12 @@ function handlePrivateConversation(
     }
 }
 function handleSockets(socket) {
-    socket.onopen = (e)=> console.log('User Connected!');
+    socket.onopen = () => console.log('User Connected!');
     socket.onmessage = (message)=> {
         const data = JSON.parse(message.data);
         switch (data.event.type) {
             case 'user-connected':
+                socket.socketId = data.event.uid;
                 socket.send(JSON.stringify({
                     event: {
                         type:'user-connected',
@@ -180,49 +181,35 @@ function handleSockets(socket) {
                 }
                 break;
             case 'open-private-chat':
-                let chats = JSON.parse(localStorage.getItem('chats'))
+                {
+                    let chats = JSON.parse(localStorage.getItem('chats'));
+                    const chat = {}
 
-                // const chat = new Map();
-                // chat.set(crypto.randomUUID(),{
-                //     privateChats: [],
-                //     sender: socket.socketId,
-                //     recipient: data.event.recipient
-                // });
+                    chat[crypto.randomUUID()] = {
+                        privateChats: [],
+                        sender: socket.socketId,
+                        recipient: data.event.recipient
+                    };
 
-                const chat = {}
+                    if(!chats) {
+                        localStorage.setItem('chats',JSON.stringify([]));
+                        chats = JSON.parse(localStorage.getItem('chats'));
+                    }
 
-                chat[crypto.randomUUID()] = {
-                    privateChats: [],
-                    sender: socket.socketId,
-                    recipient: data.event.recipient
-                };
-
-                if(!chats) {
-                    localStorage.setItem('chats',JSON.stringify([]));
-                    chats = JSON.parse(localStorage.getItem('chats'));
+                    chats.push(chat);
+                    localStorage.setItem('chats',JSON.stringify(chats));
+                
+                    handlePrivateConversation(data.event, socket)
+                    break;
                 }
-
-                chats.push(chat);
-                localStorage.setItem('chats',JSON.stringify(chats));
-               
-                /**
-                 * {
-                 *  chatId: {
-                 *      SENDER: socket.sockedId,
-                 *      RECIPIENT: recipient,
-                 *      privateChats:[{msg:'hello',recieved:true},{msg:'world',recieved:false}]
-                 *  }
-                 * }
-                 */
-                handlePrivateConversation(data.event, socket)
-                break;
             case 'send-msg':
-                const { recipient,message } = data.event;
-                let allChats = JSON.parse(localStorage.getItem('chats'));
+                {
+                    const { recipient,message } = data.event;
+                const allChats = JSON.parse(localStorage.getItem('chats'));
                 try {
-                    let obj = allChats.pop();
-                    let [key,values] = Object.entries(obj)[0];
-                    let latestChat = {};
+                    const obj = allChats.pop();
+                    const [key,values] = Object.entries(obj)[0];
+                    const latestChat = {};
                     values['privateChats'].push({
                         message,
                         sender: socket.socketId
@@ -258,16 +245,16 @@ function handleSockets(socket) {
                     console.error(error.message)
                 }
                 break;
-            case 'leaving':
-                console.log(data.event)
+                }
             case 'error':
                 console.log(data.event)
+                break;
             default:
                 break;
         }
     }
     socket.onerror = (e) => console.log("socket errored:", e);
-    socket.onclose = (e) => {
+    socket.onclose = () => {
         console.log(`${socket.socketId} has left`)
         for(const user of activeUsers) {
             if(user[1].socketId === socket.socketId) {
@@ -289,7 +276,8 @@ async function init(PORT: number) {
     console.log(`Server is running on PORT: http://localhost:${PORT}`);
     await initServerConnection(server);
 }
-// console.log(localStorage.getItem('users'))
+// console.log(localStorage.getItem('chats'))
+// await Deno.writeTextFile('dumpLocalStorageData.json',localStorage.getItem('chats'))
 // localStorage.removeItem('chats')
 // localStorage.clear()
 await init(port);
