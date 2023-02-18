@@ -1,6 +1,6 @@
 {
-    "tasks": {
-        "dev":"deno run --allow-net --allow-read --allow-write --allow-sys  --watch server.ts -p 5555",
-        "start":"deno run --allow-net --allow-read --allow-write --allow-sys server.ts"
-    }
+  "tasks": {
+    "dev": "deno run --allow-net --allow-read --allow-write --allow-sys  --watch server.ts -p 5555",
+    "start": "deno run --allow-net --allow-read --allow-write --allow-sys server.ts"
+  }
 }
