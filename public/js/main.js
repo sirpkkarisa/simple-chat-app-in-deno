@@ -58,18 +58,16 @@ function handleSocket(socket) {
 
   socket.addEventListener("message", (event) => {
     const data = JSON.parse(event.data);
-    // console.log(data)
     switch (data.event.type) {
       case "load-users":
         updateUsers(data.event.users);
         break;
       case "private-chat":
-        console.log(data.event, socket.socketId);
         socket.recipient = data.event.from;
+        if (data.event.chats) updateChatUI(Object.values(data.event.chats)[0]);
         break;
       case "send-msg":
         updateChatUI(data.event.chats);
-        // socket.socketId = data.event.socketId;
         break;
       case "user-connected":
         socket.socketId = data.event.socketId;
@@ -139,8 +137,6 @@ function sendMsg(e) {
 
   if (val.length === 0) return;
   if (socket) {
-    console.log(socket.socketId, socket.recipient);
-
     socket.send(JSON.stringify({
       event: {
         type: "send-msg",

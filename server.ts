@@ -37,6 +37,7 @@ async function handleRegistration(req: Request) {
   const pass = res["user-password"];
   const fname = res["fname"];
   const lname = res["lname"];
+
   let users = JSON.parse(localStorage.getItem("users"));
   if (!users) localStorage.setItem("users", JSON.stringify([]));
   if (!uid || !pass || !fname || !lname) return resp.json("Bad Request", 400);
@@ -91,7 +92,6 @@ async function handleRequest(req: Request): Response {
 
     if (upgrade === "websocket") {
       const { socket, response } = await Deno.upgradeWebSocket(req);
-      // socket.socketId = crypto.randomUUID();
       handleSockets(socket);
       return response;
     }
@@ -142,6 +142,7 @@ function loadUsers() {
 function handlePrivateConversation(
   { recipient },
   socket,
+  chats: Record<string, unkown>,
 ) {
   for (const sock of activeUsers.values()) {
     if (sock.readyState !== 3 && sock.socketId === recipient) {
@@ -158,11 +159,106 @@ function handlePrivateConversation(
           type: "private-chat",
           me: socket.socketId,
           from: recipient,
+          chats,
         },
       }));
     }
   }
 }
+
+function handleSendMsg({ recipient, message }, socket) {
+  const allChats = JSON.parse(localStorage.getItem("chats"));
+  try {
+    const obj = allChats.find((cht) => {
+      const value = Object.values(cht)[0];
+      return ((value.sender === socket.socketId ||
+        value.sender === recipient) &&
+        (value.recipient === socket.socketId || value.recipient === recipient));
+    });
+
+    const [key, values] = Object.entries(obj)[0];
+    const latestChat = {};
+
+    // console.log(`\nInitiator: ${values['sender']},Initial Recipient: ${values['recipient']}, Current Sender: ${socket.socketId}, Current Recipient: ${recipient}\n`)
+    // || values['recipient'] !== socket.socketId || values['recipient'] !== recipient
+    if (
+      values["sender"] !== socket.socketId && values["sender"] !== recipient
+    ) {
+      socket.send(JSON.stringify({
+        event: {
+          type: "error",
+          message: "select recipient",
+        },
+      }));
+      return;
+    }
+
+    values["privateChats"].push({
+      message,
+      sender: socket.socketId,
+    });
+    latestChat[key] = values;
+    allChats.push(latestChat);
+
+    localStorage.setItem("chats", JSON.stringify(allChats));
+    for (const sock of activeUsers.values()) {
+      if (sock.readyState !== 3 && sock.socketId === recipient) {
+        sock.send(JSON.stringify({
+          event: {
+            type: "send-msg",
+            from: socket.socketId,
+            me: recipient,
+            chats: values,
+          },
+        }));
+
+        socket.send(JSON.stringify({
+          event: {
+            type: "send-msg",
+            me: socket.socketId,
+            from: recipient,
+            chats: values,
+          },
+        }));
+      }
+    }
+  } catch (error) {
+    console.log(allChats);
+    console.error(error.message);
+  }
+}
+
+function handleOpenPrivateChat(data, socket) {
+  let chats = JSON.parse(localStorage.getItem("chats"));
+  const chat = {};
+
+  if (!chats) {
+    localStorage.setItem("chats", JSON.stringify([]));
+    chats = JSON.parse(localStorage.getItem("chats"));
+  }
+
+  chat[crypto.randomUUID()] = {
+    privateChats: [],
+    sender: socket.socketId,
+    recipient: data.event.recipient,
+  };
+
+  const idx = chats.findIndex((cht) => {
+    const value = Object.values(cht)[0];
+    return ((value.sender === socket.socketId ||
+      value.sender === data.event.recipient) &&
+      (value.recipient === socket.socketId ||
+        value.recipient === data.event.recipient));
+  });
+
+  if (idx === -1) {
+    chats.push(chat);
+    localStorage.setItem("chats", JSON.stringify(chats));
+  }
+
+  handlePrivateConversation(data.event, socket, chats[idx]);
+}
+
 function handleSockets(socket) {
   socket.onopen = () => console.log("User Connected!");
   socket.onmessage = (message) => {
@@ -182,69 +278,12 @@ function handleSockets(socket) {
           loadUsers();
         }
         break;
-      case "open-private-chat": {
-        let chats = JSON.parse(localStorage.getItem("chats"));
-        const chat = {};
-
-        chat[crypto.randomUUID()] = {
-          privateChats: [],
-          sender: socket.socketId,
-          recipient: data.event.recipient,
-        };
-
-        if (!chats) {
-          localStorage.setItem("chats", JSON.stringify([]));
-          chats = JSON.parse(localStorage.getItem("chats"));
-        }
-
-        chats.push(chat);
-        localStorage.setItem("chats", JSON.stringify(chats));
-
-        handlePrivateConversation(data.event, socket);
+      case "open-private-chat":
+        handleOpenPrivateChat(data, socket);
         break;
-      }
-      case "send-msg": {
-        const { recipient, message } = data.event;
-        const allChats = JSON.parse(localStorage.getItem("chats"));
-        try {
-          const obj = allChats.pop();
-          const [key, values] = Object.entries(obj)[0];
-          const latestChat = {};
-          values["privateChats"].push({
-            message,
-            sender: socket.socketId,
-          });
-          latestChat[key] = values;
-          allChats.push(latestChat);
-          // console.log(latestChat)
-          localStorage.setItem("chats", JSON.stringify(allChats));
-          for (const sock of activeUsers.values()) {
-            if (sock.readyState !== 3 && sock.socketId === recipient) {
-              sock.send(JSON.stringify({
-                event: {
-                  type: "send-msg",
-                  from: socket.socketId,
-                  me: recipient,
-                  chats: values,
-                },
-              }));
-
-              socket.send(JSON.stringify({
-                event: {
-                  type: "send-msg",
-                  me: socket.socketId,
-                  from: recipient,
-                  chats: values,
-                },
-              }));
-            }
-          }
-        } catch (error) {
-          console.log(allChats);
-          console.error(error.message);
-        }
+      case "send-msg":
+        handleSendMsg(data.event, socket);
         break;
-      }
       case "error":
         console.log(data.event);
         break;
@@ -254,7 +293,7 @@ function handleSockets(socket) {
   };
   socket.onerror = (e) => console.log("socket errored:", e);
   socket.onclose = () => {
-    console.log(`${socket.socketId} has left`);
+    console.log(`${socket.socketId} left`);
     for (const user of activeUsers) {
       if (user[1].socketId === socket.socketId) {
         activeUsers.delete(user[0]);
@@ -275,8 +314,5 @@ async function init(PORT: number) {
   console.log(`Server is running on PORT: http://localhost:${PORT}`);
   await initServerConnection(server);
 }
-// console.log(localStorage.getItem('chats'))
-// await Deno.writeTextFile('dumpLocalStorageData.json',localStorage.getItem('chats'))
-// localStorage.removeItem('chats')
-// localStorage.clear()
+
 await init(port);
