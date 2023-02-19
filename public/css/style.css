@@ -16,6 +16,57 @@ body {
     position: relative;
 }
 
+header {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 1rem;
+    align-items: flex-start;
+}
+
+#select-group {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: flex-end;
+    width: 50%;
+    padding-top: 0.5rem;
+    position: relative;
+}
+
+#toggle-group-selection {
+    border: 1px solid #a0a0a0;
+    background-color: #a0a0a0;
+    outline: none;
+    border-radius: 0.5rem;
+    height: 30px;
+    width: fit-content;
+    padding: 0 0.2rem;
+    margin-bottom: 1rem;
+    cursor: pointer;
+}
+
+#select-group ul {
+    display: none;
+    list-style: none;
+    position: absolute;
+    top: 3rem;
+    z-index: 1000;
+}
+
+#select-group li {
+    border-top: 1px solid #c0c0c0;
+    height: 30px;
+}
+
+#select-group li button {
+    background-color: #1b1b1b;
+    border: none;
+    outline: none;
+    color: #c0c0c0;
+    padding: 0.3rem;
+    cursor: pointer;
+}
+
 .forms {
     display: flex;
     align-items: center;
@@ -105,6 +156,7 @@ aside #top {
     display: flex;
     justify-content:space-between;
     align-items: center;
+    flex-wrap: wrap;
     padding: 0.5rem 0.5rem 0 0.5rem;
 }
 
@@ -112,7 +164,7 @@ aside #top {
     padding: 0.2rem 1rem;
     display: flex;
     align-items: center;
-    width: 100%;
+    width: fit-content;
     height: 100%;
     color: #a0a0a0;
     text-decoration: none;
@@ -188,6 +240,15 @@ article {
     overflow-y: scroll;
     scroll-behavior: smooth;
 }
+
+.chats h1 {
+    margin: auto;
+    position: absolute;
+    top: 50%;
+    width: 90%;
+    text-align: center;
+}
+
 ::-webkit-scrollbar {
     width: 5%;
   }
@@ -268,6 +329,10 @@ input.error {
 
 .input button:hover {
     opacity: 0.8;
+}
+
+.my-groups {
+    min-width: 100px;
 }
 
 footer {

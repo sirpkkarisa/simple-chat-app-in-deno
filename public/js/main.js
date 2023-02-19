@@ -10,11 +10,20 @@ const msgForm = document.querySelector("form.input");
 const usersEl = document.getElementById("users");
 const topDash = document.getElementById("top");
 const chatsUI = document.querySelector("ul.chats");
+const toggleChats = document.getElementById("toggle-group-selection");
+const selectGroup = document.querySelector("#select-group ul");
+const joinGroup = document.getElementById("join-group");
+const newGroup = document.getElementById("new-group");
+const myGroups = document.getElementById("my-groups");
 
 const SERVER_ADDR = location.origin;
 
 let isHidden = true;
+let isGroup = false;
 let socket;
+let isJoinGroup = true;
+let isNewGroup = true;
+let isMyGroups = true;
 
 function _openPrivateChat(socketId) {
   socket.send(JSON.stringify({
@@ -43,6 +52,34 @@ function updateUsers(users) {
   usersEl.innerHTML = userLI;
 }
 
+function _openGroupChats(groupName) {
+  socket.send(JSON.stringify({
+    event: {
+      type: "load-group-chats",
+      groupName,
+    },
+  }));
+}
+
+function loadGroups(data) {
+  const groupsDiv = document.createElement("div");
+  let li = "";
+
+  data.event.groups.forEach((g) => {
+    li += `<li><button onclick="_openGroupChats('${g}')">${g}</button></li>`;
+  });
+  groupsDiv.innerHTML = `<ul>${li}</ul>`;
+
+  groupsDiv.classList.add("my-groups");
+  if (isMyGroups) {
+    dashboard.append(groupsDiv);
+    isMyGroups = false;
+  } else {
+    document.querySelector(".my-groups").remove();
+    isMyGroups = true;
+  }
+}
+
 function handleSocket(socket) {
   socket.addEventListener("open", () => {
     const user = JSON.parse(localStorage.getItem("user"));
@@ -63,11 +100,14 @@ function handleSocket(socket) {
         updateUsers(data.event.users);
         break;
       case "private-chat":
+        socket.isActive = "private";
         socket.recipient = data.event.from;
-        if (data.event.chats) updateChatUI(Object.values(data.event.chats)[0]);
+        if (data.event.chats) {
+          updateChatUI(Object.values(data.event.chats)[0].privateChats);
+        }
         break;
       case "send-msg":
-        updateChatUI(data.event.chats);
+        updateChatUI(data.event.chats.privateChats);
         break;
       case "user-connected":
         socket.socketId = data.event.socketId;
@@ -78,6 +118,22 @@ function handleSocket(socket) {
       case "error":
         console.log(data.event);
         break;
+      case "group-ok":
+        console.log(data.event);
+        break;
+      case "user-joined":
+        console.log(data.event);
+        break;
+      case "load-groups":
+        loadGroups(data);
+        break;
+      case "load-group-chats": {
+        socket.isActive = "group";
+        const [k, v] = Object.entries(data.event.payload)[0];
+        socket.groupName = k;
+        if (v.chats) updateChatUI(v.chats);
+        break;
+      }
       default:
         break;
     }
@@ -98,10 +154,10 @@ function handleSocket(socket) {
   });
 }
 
-function updateChatUI({ privateChats }) {
+function updateChatUI(chats) {
   let ui = "";
-
-  privateChats.forEach((chat) => {
+  console.log(chats);
+  chats.forEach((chat) => {
     if (chat.sender === socket.socketId) {
       ui += `<li class="sent">${chat.message}</li>`;
     } else {
@@ -110,6 +166,8 @@ function updateChatUI({ privateChats }) {
   });
 
   chatsUI.innerHTML = ui;
+  document.querySelector("header h1").textContent =
+    socket.isActive === "private" ? socket.recipient : socket.groupName;
 }
 
 function validateInputs(e) {
@@ -137,11 +195,20 @@ function sendMsg(e) {
 
   if (val.length === 0) return;
   if (socket) {
+    let type, recipient;
+
+    if (socket.isActive === "private") {
+      type = "send-msg";
+      recipient = socket.recipient;
+    } else {
+      type = "send-group-msg";
+      recipient = socket.groupName;
+    }
     socket.send(JSON.stringify({
       event: {
-        type: "send-msg",
         message: val,
-        recipient: socket.recipient,
+        type,
+        recipient,
       },
     }));
     msgEl.value = "";
@@ -237,7 +304,111 @@ logout && logout.addEventListener("click", (e) => {
   forms.style.display = "flex";
 });
 
+toggleChats.addEventListener("click", () => {
+  if (isGroup) {
+    selectGroup.style.display = "none";
+    isGroup = false;
+  } else {
+    selectGroup.style.display = "block";
+    isGroup = true;
+  }
+});
+
 msgForm.addEventListener("submit", sendMsg);
+
+joinGroup.addEventListener("click", () => {
+  const formDiv = document.createElement("div");
+
+  formDiv.innerHTML = `
+    <form id="join-form" onsubmit="_joinForm(event)">
+    <div>
+        <label>Group Name:</label>
+        <input type="text" name="group-name">
+    </div>
+    <button type="submit">Join</button>
+    </form>
+  `;
+
+  formDiv.classList.add("join-div");
+  if (!isNewGroup) {
+    document.querySelector(".new-div").remove();
+    isNewGroup = !isNewGroup;
+  }
+
+  if (isJoinGroup) {
+    dashboard.append(formDiv);
+    isJoinGroup = false;
+  } else {
+    document.querySelector(".join-div").remove();
+    isJoinGroup = true;
+  }
+});
+
+newGroup.addEventListener("click", () => {
+  const formDiv = document.createElement("div");
+
+  formDiv.innerHTML = `
+    <form id="new-form" onsubmit="_newForm(event)">
+    <div>
+        <label>Group Name:</label>
+        <input type="text" name="group-name">
+    </div>
+    <button type="submit">New Group</button>
+    </form>
+  `;
+
+  formDiv.classList.add("new-div");
+  if (!isJoinGroup) document.querySelector(".join-div").remove();
+  if (isNewGroup) {
+    dashboard.append(formDiv);
+    isNewGroup = false;
+  } else {
+    document.querySelector(".new-div").remove();
+    isNewGroup = true;
+  }
+});
+
+myGroups.addEventListener("click", () => {
+  socket.send(JSON.stringify({
+    event: {
+      type: "load-groups",
+      user: socket.socketId,
+    },
+  }));
+});
+
+const _newForm = (e) => {
+  e.preventDefault();
+  const groupName = e.target["group-name"];
+  if (groupName.value.trim().length < 3) {
+    alert("Group Name is too short!");
+    return;
+  }
+
+  socket.send(JSON.stringify({
+    event: {
+      type: "new-group",
+      groupName: groupName.value.trim(),
+    },
+  }));
+};
+
+const _joinForm = (e) => {
+  e.preventDefault();
+
+  const groupName = e.target["group-name"];
+  if (groupName.value.trim().length === 0) {
+    alert("Enter group name");
+    return;
+  }
+
+  socket.send(JSON.stringify({
+    event: {
+      type: "join-group",
+      groupName: groupName.value.trim(),
+    },
+  }));
+};
 
 addEventListener("DOMContentLoaded", () => {
   const user = JSON.parse(localStorage.getItem("user"));

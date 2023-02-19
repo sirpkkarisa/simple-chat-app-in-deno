@@ -179,15 +179,13 @@ function handleSendMsg({ recipient, message }, socket) {
     const [key, values] = Object.entries(obj)[0];
     const latestChat = {};
 
-    // console.log(`\nInitiator: ${values['sender']},Initial Recipient: ${values['recipient']}, Current Sender: ${socket.socketId}, Current Recipient: ${recipient}\n`)
-    // || values['recipient'] !== socket.socketId || values['recipient'] !== recipient
     if (
       values["sender"] !== socket.socketId && values["sender"] !== recipient
     ) {
       socket.send(JSON.stringify({
         event: {
           type: "error",
-          message: "select recipient",
+          message: "choose partner",
         },
       }));
       return;
@@ -259,6 +257,88 @@ function handleOpenPrivateChat(data, socket) {
   handlePrivateConversation(data.event, socket, chats[idx]);
 }
 
+function handleNewGroup(groupName, socket) {
+  let groups = JSON.parse(localStorage.getItem("groups"));
+
+  if (!groups) {
+    localStorage.setItem("groups", JSON.stringify([]));
+    groups = JSON.parse(localStorage.getItem("groups"));
+  }
+
+  const group = groups.find((grp) => Object.keys(grp)[0] === groupName);
+  if (group) {
+    return socket.send(JSON.stringify({
+      event: {
+        type: "error",
+        message: `Group name "${groupName}" already exists`,
+      },
+    }));
+  }
+
+  const obj = {};
+  obj[groupName] = {
+    members: [socket.socketId],
+    chats: [],
+  };
+  localStorage.setItem("groups", JSON.stringify([...groups, obj]));
+
+  socket.send(JSON.stringify({
+    event: {
+      type: "group-ok",
+      payload: obj,
+    },
+  }));
+}
+
+function handleJoinGroup(groupName, socket) {
+  const groups = JSON.parse(localStorage.getItem("groups"));
+
+  if (!groups) {
+    return socket.send(JSON.stringify({
+      event: {
+        type: "error",
+        message: `Group name "${groupName}" does not exist`,
+      },
+    }));
+  }
+
+  const idx = groups.findIndex((grp) => Object.keys(grp)[0] === groupName);
+  const values = Object.values(groups[idx])[0];
+  const isMember = values.members.find((m) => m === socket.socketId);
+
+  if (!isMember) {
+    values.members.push(socket.socketId);
+    groups[idx][groupName] = values;
+  }
+
+  localStorage.setItem("groups", JSON.stringify(groups));
+
+  socket.send(JSON.stringify({
+    event: {
+      type: "group-ok",
+      payload: values,
+    },
+  }));
+
+  // Notify members of a user who joined
+  for (const it of activeUsers) {
+    values.members.forEach((member) => {
+      if (
+        member === it[0] &&
+        it[0] !== socket.socketId &&
+        it[1].readyState !== 3
+      ) {
+        it[1].send(JSON.stringify({
+          event: {
+            type: "user-joined",
+            user: socket.socketId,
+          },
+        }));
+      }
+    });
+  }
+}
+
 function handleSockets(socket) {
   socket.onopen = () => console.log("User Connected!");
   socket.onmessage = (message) => {
@@ -287,6 +367,81 @@ function handleSockets(socket) {
       case "error":
         console.log(data.event);
         break;
+      case "new-group":
+        handleNewGroup(data.event.groupName, socket);
+        break;
+      case "join-group":
+        handleJoinGroup(data.event.groupName, socket);
+        break;
+      case "load-groups": {
+        let groups = JSON.parse(localStorage.getItem("groups"));
+        if (groups) {
+          groups = groups.filter((group) => {
+            const values = Object.values(group)[0];
+            if (
+              values.members.find((m) => m === socket.socketId) !== undefined
+            ) {
+              return group;
+            }
+          });
+        }
+
+        socket.send(JSON.stringify({
+          event: {
+            type: "load-groups",
+            groups: groups.map((g) => Object.keys(g)[0]),
+          },
+        }));
+        break;
+      }
+      case "load-group-chats": {
+        const groupChats = JSON.parse(localStorage.getItem("groups"));
+        let grpChats;
+        if (groupChats) {
+          grpChats = groupChats.filter((group) =>
+            Object.keys(group)[0] === data.event.groupName
+          )[0];
+        }
+        socket.send(JSON.stringify({
+          event: {
+            type: "load-group-chats",
+            payload: grpChats,
+          },
+        }));
+        break;
+      }
+      case "send-group-msg": {
+        const allGroups = JSON.parse(localStorage.getItem("groups"));
+        const group = allGroups.find((g) =>
+          Object.keys(g)[0] === data.event.recipient
+        );
+        const object = Object.values(group)[0];
+        const payload = {
+          ...object,
+          chats: [...object.chats, {
+            sender: socket.socketId,
+            message: data.event.message,
+          }],
+        };
+
+        for (const it of activeUsers) {
+          object.members.forEach((member) => {
+            if (
+              member === it[0] &&
+              it[0] !== socket.socketId &&
+              it[1].readyState !== 3
+            ) {
+              it[1].send(JSON.stringify({
+                event: {
+                  type: "load-group-chats",
+                  payload,
+                },
+              }));
+            }
+          });
+        }
+        break;
+      }
       default:
         break;
     }
@@ -311,7 +466,7 @@ function handleSockets(socket) {
 
 async function init(PORT: number) {
   const server = Deno.listen({ port: PORT });
-  console.log(`Server is running on PORT: http://localhost:${PORT}`);
+  console.log(`Server is running: http://localhost:${PORT}`);
   await initServerConnection(server);
 }
 
