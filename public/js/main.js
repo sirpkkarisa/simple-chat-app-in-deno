@@ -129,11 +129,15 @@ function handleSocket(socket) {
         break;
       case "load-group-chats": {
         socket.isActive = "group";
-        const [k, v] = Object.entries(data.event.payload)[0];
-        socket.groupName = k;
-        if (v.chats) updateChatUI(v.chats);
+        const object = Object.entries(data.event.payload)[0];
+        if (object[0] !== "members") socket.groupName = object[0];
+        console.log(object);
+        if (object[1].chats) updateChatUI(object[1].chats);
         break;
       }
+      case "send-group-msg":
+        updateChatUI(data.event.payload.chats);
+        break;
       default:
         break;
     }
@@ -204,6 +208,7 @@ function sendMsg(e) {
       type = "send-group-msg";
       recipient = socket.groupName;
     }
+    console.log(socket, recipient);
     socket.send(JSON.stringify({
       event: {
         message: val,

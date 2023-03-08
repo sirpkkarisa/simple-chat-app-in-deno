@@ -402,6 +402,7 @@ function handleSockets(socket) {
             Object.keys(group)[0] === data.event.groupName
           )[0];
         }
+        // console.log(groupChats,grpChats)
         socket.send(JSON.stringify({
           event: {
             type: "load-group-chats",
@@ -412,33 +413,42 @@ function handleSockets(socket) {
       }
       case "send-group-msg": {
         const allGroups = JSON.parse(localStorage.getItem("groups"));
-        const group = allGroups.find((g) =>
-          Object.keys(g)[0] === data.event.recipient
-        );
-        const object = Object.values(group)[0];
-        const payload = {
-          ...object,
-          chats: [...object.chats, {
-            sender: socket.socketId,
-            message: data.event.message,
-          }],
-        };
 
-        for (const it of activeUsers) {
-          object.members.forEach((member) => {
-            if (
-              member === it[0] &&
-              it[0] !== socket.socketId &&
-              it[1].readyState !== 3
-            ) {
-              it[1].send(JSON.stringify({
-                event: {
-                  type: "load-group-chats",
-                  payload,
-                },
-              }));
-            }
-          });
+        try {
+          const groupIndex = allGroups.findIndex((g) =>
+            Object.keys(g)[0] === data.event.recipient
+          );
+          const [groupName, object] = Object.entries(allGroups[groupIndex])[0];
+
+          const payload = {
+            ...object,
+            chats: [...object.chats, {
+              sender: socket.socketId,
+              message: data.event.message,
+            }],
+          };
+          const obj = {};
+          obj[groupName] = payload;
+          allGroups[groupIndex] = obj;
+
+          for (const it of activeUsers) {
+            object.members.forEach((member) => {
+              if (
+                member === it[0] &&
+                it[1].readyState !== 3
+              ) {
+                it[1].send(JSON.stringify({
+                  event: {
+                    type: "send-group-msg",
+                    payload,
+                  },
+                }));
+              }
+            });
+          }
+          localStorage.setItem("groups", JSON.stringify(allGroups));
+        } catch (error) {
+          console.log(error.message, data.event);
         }
         break;
       }
@@ -469,5 +479,8 @@ async function init(PORT: number) {
   console.log(`Server is running: http://localhost:${PORT}`);
   await initServerConnection(server);
 }
-
+// console.log(JSON.parse(localStorage.getItem('groups')))
+// await Deno.writeTextFile('dumpLocalStorageData.json',localStorage.getItem('chats'))
+// localStorage.removeItem('groups')
+// localStorage.clear()
 await init(port);
