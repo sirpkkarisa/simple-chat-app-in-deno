@@ -131,7 +131,6 @@ function handleSocket(socket) {
         socket.isActive = "group";
         const object = Object.entries(data.event.payload)[0];
         if (object[0] !== "members") socket.groupName = object[0];
-        console.log(object);
         if (object[1].chats) updateChatUI(object[1].chats);
         break;
       }
@@ -160,7 +159,6 @@ function handleSocket(socket) {
 
 function updateChatUI(chats) {
   let ui = "";
-  console.log(chats);
   chats.forEach((chat) => {
     if (chat.sender === socket.socketId) {
       ui += `<li class="sent">${chat.message}</li>`;
