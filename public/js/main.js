@@ -1,3 +1,13 @@
+const servers = {
+  iceServers: [
+    {
+      urls: [
+        "stun:stun1.l.google.com:19302",
+        "stun:stun2.l.google.com:19302",
+      ],
+    },
+  ],
+};
 const drag = document.querySelector("aside span");
 const dashboard = document.querySelector(".dashboard");
 const forms = document.querySelector(".forms");
@@ -15,6 +25,7 @@ const selectGroup = document.querySelector("#select-group ul");
 const joinGroup = document.getElementById("join-group");
 const newGroup = document.getElementById("new-group");
 const myGroups = document.getElementById("my-groups");
+const videoBtn = document.getElementById("video-btn");
 
 const SERVER_ADDR = location.origin;
 
@@ -24,6 +35,9 @@ let socket;
 let isJoinGroup = true;
 let isNewGroup = true;
 let isMyGroups = true;
+let toggleVideo = false;
+let localStream = null;
+let peerConnection = null;
 
 function _openPrivateChat(socketId) {
   socket.send(JSON.stringify({
@@ -35,7 +49,7 @@ function _openPrivateChat(socketId) {
 }
 
 function updateUsers(users) {
-  const thisUser = JSON.parse(localStorage.getItem("user"))["user-id"];
+  const thisUser = JSON.parse(sessionStorage.getItem("user"))["user-id"];
   const thisUserHTML =
     `<h1>${thisUser}</h1> <a href="#" id="logout">Logout</a>`;
   let userLI = "";
@@ -82,7 +96,7 @@ function loadGroups(data) {
 
 function handleSocket(socket) {
   socket.addEventListener("open", () => {
-    const user = JSON.parse(localStorage.getItem("user"));
+    const user = JSON.parse(sessionStorage.getItem("user"));
     if (user) {
       socket.send(JSON.stringify({
         event: {
@@ -137,7 +151,21 @@ function handleSocket(socket) {
       case "send-group-msg":
         updateChatUI(data.event.payload.chats);
         break;
-      default:
+      case "accept":
+        acceptCall();
+        break;
+      case "offer":
+        peerConnection.setRemoteDescription(data.event.offer);
+        createAndSendAnswer();
+        break;
+      case "answer":
+        console.log(data.event.answer);
+        peerConnection.setRemoteDescription(data.event.answer);
+        break;
+      case "candidate":
+        if (data.event.candidate) {
+          peerConnection.addIceCandidate(data.event.candidate);
+        }
         break;
     }
   });
@@ -238,7 +266,7 @@ loginForm.addEventListener("submit", async function (e) {
       dashboard.style.display = "flex";
       forms.style.display = "none";
       delete valid["user-password"];
-      localStorage.setItem("user", JSON.stringify(valid));
+      sessionStorage.setItem("user", JSON.stringify(valid));
 
       socket = new WebSocket(`ws://${location.host}/chat`);
 
@@ -413,8 +441,153 @@ const _joinForm = (e) => {
   }));
 };
 
+async function acceptCall() {
+  if (confirm("Incoming call")) {
+    localStream = await navigator.mediaDevices.getUserMedia({
+      audio: true,
+      video: true,
+    });
+
+    chatsUI.innerHTML = "";
+    const remoteVidEl = document.createElement("video");
+    remoteVidEl.setAttribute("id", "partner");
+    const videoEl = document.createElement("video");
+    videoEl.setAttribute("id", "me");
+    videoEl.srcObject = localStream;
+    videoEl.onloadedmetadata = () => {
+      videoEl.play();
+    };
+    chatsUI.append(videoEl);
+    chatsUI.append(remoteVidEl);
+
+    peerConnection = new RTCPeerConnection(servers);
+    peerConnection.addStream(localStream);
+
+    peerConnection.onaddstream = (ev) => {
+      // console.log(ev)
+      remoteVidEl.srcObject = ev.stream;
+    };
+    remoteVidEl.onloadedmetadata = () => {
+      remoteVidEl.play();
+    };
+
+    peerConnection.onicecandidate = (ev) => {
+      if (!ev.candidate) return;
+      socket.send(JSON.stringify({
+        event: {
+          type: "send-candidate",
+          candidate: ev.candidate,
+        },
+      }));
+    };
+
+    socket.send(JSON.stringify({
+      event: {
+        type: "accept-call",
+        recipient: socket.recipient,
+      },
+    }));
+  }
+}
+async function initiateCall() {
+  if (!toggleVideo) {
+    localStream = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: true,
+    });
+
+    chatsUI.innerHTML = "";
+    const remoteVidEl = document.createElement("video");
+    remoteVidEl.setAttribute("id", "partner");
+    const videoEl = document.createElement("video");
+    videoEl.setAttribute("id", "me");
+    videoEl.srcObject = localStream;
+    videoEl.onloadedmetadata = () => {
+      videoEl.play();
+    };
+    chatsUI.append(videoEl);
+    chatsUI.append(remoteVidEl);
+
+    peerConnection = new RTCPeerConnection(servers);
+    peerConnection.addStream(localStream);
+
+    peerConnection.onaddstream = (ev) => {
+      remoteVidEl.srcObject = ev.stream;
+    };
+
+    remoteVidEl.onloadedmetadata = () => {
+      remoteVidEl.play();
+    };
+    let sent = 1;
+    peerConnection.onicecandidate = (ev) => {
+      if (!ev.candidate) return;
+
+      if (sent === 3) {
+        socket.send(JSON.stringify({
+          event: {
+            type: "trigger-accept",
+          },
+        }));
+      }
+      socket.send(JSON.stringify({
+        event: {
+          type: "store-candidate",
+          candidate: ev.candidate,
+        },
+      }));
+      sent += 1;
+    };
+
+    createAndSendOffer();
+  } else {
+    chatsUI.innerHTML = "<h1>&lAarr; Select User to Start Chatting</h1>";
+  }
+}
+
+videoBtn.addEventListener("click", () => {
+  try {
+    initiateCall();
+  } catch (error) {
+    console.log(error);
+  }
+
+  toggleVideo = !toggleVideo;
+});
+
+async function createAndSendAnswer() {
+  try {
+    const answer = await peerConnection.createAnswer();
+    peerConnection.setLocalDescription(answer);
+
+    socket.send(JSON.stringify({
+      event: {
+        type: "send-answer",
+        answer,
+      },
+    }));
+  } catch (error) {
+    console.log(error);
+  }
+}
+
+async function createAndSendOffer() {
+  try {
+    const offer = await peerConnection.createOffer();
+    socket.send(JSON.stringify({
+      event: {
+        type: "store-offer",
+        offer: offer,
+      },
+    }));
+
+    await peerConnection.setLocalDescription(offer);
+  } catch (error) {
+    console.log(error);
+  }
+}
+
 addEventListener("DOMContentLoaded", () => {
-  const user = JSON.parse(localStorage.getItem("user"));
+  const user = JSON.parse(sessionStorage.getItem("user"));
   if (user) {
     dashboard.style.display = "flex";
     forms.style.display = "none";

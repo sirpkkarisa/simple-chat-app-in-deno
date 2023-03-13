@@ -448,11 +448,79 @@ function handleSockets(socket) {
           }
           localStorage.setItem("groups", JSON.stringify(allGroups));
         } catch (error) {
-          console.log(error.message, data.event);
+          console.log(error.message);
         }
         break;
       }
-      default:
+      case "store-offer":
+        activeUsers.forEach((payload, socketId) => {
+          if (socketId == socket.socketId) {
+            payload.offer = data.event.offer;
+            activeUsers.set(socketId, payload);
+          }
+        });
+        break;
+      case "send-candidate":
+        socket.send(JSON.stringify({
+          event: {
+            type: "candidate",
+            candidate: socket.candidate,
+            sender: socket.socketId,
+          },
+        }));
+        break;
+      case "store-candidate":
+        activeUsers.forEach((payload, socketId) => {
+          if (socketId == socket.socketId) {
+            payload.candidates = payload.candidates ?? [];
+            payload.candidates.push(data.event.candidate);
+            activeUsers.set(socketId, payload);
+          }
+        });
+
+        break;
+      case "accept-call": {
+        const user = activeUsers.get(data.event.recipient);
+        socket.send(JSON.stringify({
+          event: {
+            type: "offer",
+            offer: user.offer,
+          },
+        }));
+
+        user.candidates.forEach((candidate) =>
+          socket.send(JSON.stringify({
+            event: {
+              type: "candidate",
+              candidate,
+            },
+          }))
+        );
+        break;
+      }
+      case "trigger-accept":
+        activeUsers.forEach((payload, socketId) => {
+          if (socketId != socket.socketId) {
+            payload.send(JSON.stringify({
+              event: {
+                type: "accept",
+              },
+            }));
+          }
+        });
+        break;
+      case "send-answer":
+        for (const sock of activeUsers) {
+          if (sock[1].readyState !== 3 && sock[0] !== socket.socketId) {
+            sock[1].send(JSON.stringify({
+              event: {
+                type: "answer",
+                answer: data.event.answer,
+                sender: socket.socketId,
+              },
+            }));
+          }
+        }
         break;
     }
   };
