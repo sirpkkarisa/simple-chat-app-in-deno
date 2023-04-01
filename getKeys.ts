@@ -1,6 +1,6 @@
 import { genKey } from "./createKeyPair.ts";
 
-function StrToArrBuf(str) {
+function StrToArrBuf(str: string) {
   const buf = new ArrayBuffer(str.length);
   const bufView = new Uint8Array(buf);
 
@@ -11,7 +11,7 @@ function StrToArrBuf(str) {
   return buf;
 }
 
-async function importPrivKey(pem) {
+async function importPrivKey(pem: string) {
   const pemHeader = "-----BEGIN PRIVATE KEY-----";
   const pemFooter = "-----END PRIVATE KEY-----";
 
@@ -36,7 +36,7 @@ async function importPrivKey(pem) {
   );
 }
 
-async function importPubKey(pem) {
+async function importPubKey(pem: string) {
   // fetch the part of the PEM string between header and footer
   const pemHeader = "-----BEGIN PUBLIC KEY-----";
   const pemFooter = "-----END PUBLIC KEY-----";
@@ -61,10 +61,10 @@ async function importPubKey(pem) {
   );
 }
 
-export let privFile;
-export let pubFile;
-export let privKey;
-export let pubKey;
+export let privFile: string;
+export let pubFile: string;
+export let privKey: CryptoKey;
+export let pubKey: CryptoKey;
 
 try {
   privFile = await Deno.readTextFile("privKey.pem");
