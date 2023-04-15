@@ -5,8 +5,11 @@ import {
 import {
   getItem,
   handleJoinGroup,
+  handleLoadChats,
+  handleLoadUsers,
   handleNewGroup,
   handleOpenPrivateChat,
+  handleSendGroupMsg,
   handleSendMsg,
   loadActiveUsers,
   send,
@@ -31,7 +34,7 @@ app.router.post("/login", async (req: Request, resp: ResponseHandler) => {
   if (!uid.length || !pass.length) return resp.bad_request();
   if (!users.length) return resp.unauthorized();
 
-  const user = users.find((user) => user.uid === uid);
+  const user = users.find((user: Record<string, unknown>) => user.uid === uid);
   if (!user) return resp.unauthorized();
   const isValid = await verifyMsg(pass, user.password as string);
   if (user.uid !== uid || !isValid) return resp.forbidden();
@@ -51,7 +54,9 @@ app.router.post(
     if (!users) localStorage.setItem("users", JSON.stringify([]));
     if (!uid || !pass || !fname || !lname) return resp.bad_request();
     users = getItem("users");
-    const user = users.findIndex((user) => user.uid === uid);
+    const user = users.findIndex((user: Record<string, unknown>) =>
+      user.uid === uid
+    );
     if (user !== -1) {
       return resp.json({ message: "Email already exists" })
         .bad_request();
@@ -76,7 +81,6 @@ app.router.socket(
     socket: WebSocket & { socketId: string; candidate?: string },
     _resp: ResponseHandler,
   ) => {
-    // const socket: WebSocket & {socketId: string} = {...ws, socketId:''};
     socket.onopen = () => console.log("User connected!");
     socket.onmessage = (message: MessageEvent) => {
       const data = JSON.parse(message.data) as Record<
@@ -107,87 +111,20 @@ app.router.socket(
         case "join-group":
           handleJoinGroup(data.event.groupName, socket, activeUsers);
           break;
-        case "load-groups": {
-          let groups = getItem("groups");
-          if (groups) {
-            groups = groups.filter((group) => {
-              const values = Object.values(group)[0] as Record<
-                string,
-                string[]
-              >;
-              if (
-                values.members.find((m) => m === socket.socketId) !== undefined
-              ) {
-                return group;
-              }
-            });
-          }
-
-          socket.send(JSON.stringify({
-            event: {
-              type: "load-groups",
-              groups: groups.map((g) => Object.keys(g)[0]),
-            },
-          }));
+        case "load-groups":
+          handleLoadUsers(socket);
           break;
-        }
         case "load-group-chats": {
-          const groupChats = getItem("groups");
-          let grpChats;
-          if (groupChats) {
-            grpChats = groupChats.filter((group) =>
-              Object.keys(group)[0] === data.event.groupName
-            )[0];
-          }
-          // console.log(groupChats,grpChats)
-          socket.send(JSON.stringify({
-            event: {
-              type: "load-group-chats",
-              payload: grpChats,
-            },
-          }));
+          handleLoadChats(data.event.groupName, socket);
           break;
         }
         case "send-group-msg": {
-          const allGroups = getItem("groups");
-
-          try {
-            const groupIndex = allGroups.findIndex((g) =>
-              Object.keys(g)[0] === data.event.recipient
-            );
-            const [groupName, object] =
-              Object.entries(allGroups[groupIndex])[0];
-
-            const payload = {
-              ...object,
-              chats: [...object.chats, {
-                sender: socket.socketId,
-                message: data.event.message,
-              }],
-            };
-            const obj: Record<string, unknown> = {};
-            obj[groupName] = payload;
-            allGroups[groupIndex] = obj;
-
-            for (const it of activeUsers) {
-              (object as Record<string, string[]>).members.forEach((member) => {
-                if (
-                  member === it[0] &&
-                  it[1].readyState !== 3
-                ) {
-                  it[1].send(JSON.stringify({
-                    event: {
-                      type: "send-group-msg",
-                      payload,
-                    },
-                  }));
-                }
-              });
-            }
-            localStorage.setItem("groups", JSON.stringify(allGroups));
-          } catch (error) {
-            console.log(error.message);
-          }
+          handleSendGroupMsg(
+            activeUsers,
+            socket.socketId,
+            data.event.recipient,
+            data.event.message,
+          );
           break;
         }
         case "store-offer":
@@ -199,13 +136,11 @@ app.router.socket(
           });
           break;
         case "send-candidate":
-          socket.send(JSON.stringify({
-            event: {
-              type: "candidate",
-              candidate: socket.candidate,
-              sender: socket.socketId,
-            },
-          }));
+          send(socket, {
+            type: "candidate",
+            candidate: socket.candidate,
+            sender: socket.socketId,
+          });
           break;
         case "store-candidate":
           activeUsers.forEach((payload, socketId) => {
@@ -219,44 +154,36 @@ app.router.socket(
           break;
         case "accept-call": {
           const user = activeUsers.get(data.event.recipient);
-          socket.send(JSON.stringify({
-            event: {
-              type: "offer",
-              offer: user!.offer,
-            },
-          }));
+          send(socket, {
+            type: "offer",
+            offer: user!.offer,
+          });
 
           user!.candidates!.forEach((candidate) =>
-            socket.send(JSON.stringify({
-              event: {
-                type: "candidate",
-                candidate,
-              },
-            }))
+            send(socket, {
+              type: "candidate",
+              candidate,
+            })
           );
           break;
         }
         case "trigger-accept":
           activeUsers.forEach((payload, socketId) => {
             if (socketId != socket.socketId) {
-              payload.send(JSON.stringify({
-                event: {
-                  type: "accept",
-                },
-              }));
+              send(payload, {
+                type: "accept",
+              });
             }
           });
           break;
         case "send-answer":
           for (const sock of activeUsers) {
             if (sock[1].readyState !== 3 && sock[0] !== socket.socketId) {
-              sock[1].send(JSON.stringify({
-                event: {
-                  type: "answer",
-                  answer: data.event.answer,
-                  sender: socket.socketId,
-                },
-              }));
+              send(sock[1], {
+                type: "answer",
+                answer: data.event.answer,
+                sender: socket.socketId,
+              });
             }
           }
           break;

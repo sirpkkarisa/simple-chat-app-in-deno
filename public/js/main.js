@@ -261,7 +261,7 @@ loginForm.addEventListener("submit", async function (e) {
       body: JSON.stringify(valid),
     });
     const resp = await res.json();
-    console.log(resp)
+    console.log(resp);
 
     if (resp.message.indexOf("Logged In") !== -1) {
       dashboard.style.display = "flex";

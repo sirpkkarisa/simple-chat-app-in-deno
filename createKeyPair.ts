@@ -20,7 +20,7 @@ export async function genKey() {
   console.log("Done!");
 }
 
-async function exportPrivKeyAsPKCS8(privateKey) {
+async function exportPrivKeyAsPKCS8(privateKey: CryptoKey) {
   // export the generated key
   const exported = await crypto.subtle.exportKey(
     "pkcs8", //Public Key Cryptography Standard 8
@@ -35,7 +35,7 @@ async function exportPrivKeyAsPKCS8(privateKey) {
   return pemExported;
 }
 
-async function exportPubKeyAsSPKI(publicKey) {
+async function exportPubKeyAsSPKI(publicKey: CryptoKey) {
   const exported = await crypto.subtle.exportKey(
     "spki", //Simple Public Key Infrastructure
     publicKey,
@@ -49,8 +49,8 @@ async function exportPubKeyAsSPKI(publicKey) {
   return pemExported;
 }
 
-function ArrBufToStr(buf) {
-  return String.fromCharCode.apply(null, new Uint8Array(buf));
+function ArrBufToStr(buf: ArrayLike<number> | ArrayBuffer) {
+  return String.fromCharCode.apply(null, Array.from(new Uint8Array(buf)));
 }
 
 // module.exports = {genKey}

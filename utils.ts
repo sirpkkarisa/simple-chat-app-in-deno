@@ -1,4 +1,3 @@
-// deno-lint-ignore-file
 import { privKey, pubKey } from "./getKeys.ts";
 
 export async function signMsg(msg: string | undefined) {
@@ -46,11 +45,9 @@ export function getItem(item: string): Record<string, unknown>[] {
   if (!data) return [];
   return JSON.parse(data);
 }
-// deno-lint-ignore ban-types
-export let setItem: Function;
-setItem = (key: string, item: Record<string, unknown>[]) => {
+export function setItem(key: string, item: Record<string, unknown>[]) {
   localStorage.setItem(key, JSON.stringify(item));
-};
+}
 
 export function send(socket: WebSocket, event: Record<string, unknown>) {
   socket.send(JSON.stringify({
@@ -103,13 +100,15 @@ export function handleOpenPrivateChat(
     recipient: data.event.recipient,
   };
 
-  const idx = chats.findIndex((cht) => {
-    const value = Object.values(cht)[0] as Record<string, string>;
-    return ((value.sender === socketId ||
-      value.sender === data.event.recipient) &&
-      (value.recipient === socketId ||
-        value.recipient === data.event.recipient));
-  });
+  const idx = chats.findIndex(
+    (cht: ArrayLike<unknown> | { [s: string]: unknown }) => {
+      const value = Object.values(cht)[0] as Record<string, string>;
+      return ((value.sender === socketId ||
+        value.sender === data.event.recipient) &&
+        (value.recipient === socketId ||
+          value.recipient === data.event.recipient));
+    },
+  );
 
   if (idx === -1) {
     chats.push(chat);
@@ -134,7 +133,9 @@ export function handleNewGroup(
     groups = getItem("groups");
   }
 
-  const group = groups.find((grp) => Object.keys(grp)[0] === groupName);
+  const group = groups.find((grp: Record<string, unknown>) =>
+    Object.keys(grp)[0] === groupName
+  );
   if (group) {
     return socket.send(JSON.stringify({
       event: {
@@ -158,6 +159,7 @@ export function handleNewGroup(
     },
   }));
 }
+
 function handlePrivateConversation(
   recipient: string,
   socket: WebSocket & { socketId: string },
@@ -196,7 +198,9 @@ export function handleJoinGroup(
     });
   }
 
-  const idx = groups.findIndex((grp) => Object.keys(grp)[0] === groupName);
+  const idx = groups.findIndex((grp: Record<string, unknown>) =>
+    Object.keys(grp)[0] === groupName
+  );
   const values = Object.values(groups[idx])[0] as Record<string, string[]>;
   const isMember = values.members.find((m) => m == socket.socketId);
 
@@ -205,14 +209,12 @@ export function handleJoinGroup(
     groups[idx][groupName] = values;
   }
 
-  localStorage.setItem("groups", JSON.stringify(groups));
+  setItem("groups", groups);
 
-  socket.send(JSON.stringify({
-    event: {
-      type: "group-ok",
-      payload: values,
-    },
-  }));
+  send(socket, {
+    type: "group-ok",
+    payload: values,
+  });
 
   // Notify members of a user who joined
   for (const it of activeUsers) {
@@ -222,12 +224,10 @@ export function handleJoinGroup(
         it[0] !== socket.socketId &&
         it[1].readyState !== 3
       ) {
-        it[1].send(JSON.stringify({
-          event: {
-            type: "user-joined",
-            user: socket.socketId,
-          },
-        }));
+        send(it[1], {
+          type: "user-joined",
+          user: socket.socketId,
+        });
       }
     });
   }
@@ -241,12 +241,15 @@ export function handleSendMsg(
   const allChats = getItem("chats");
   const socketId = socket.socketId;
   try {
-    const index = allChats.findIndex((cht) => {
-      const value = Object.values(cht)[0] as Record<string, string>;
-      return ((value.sender === socketId ||
-        value.sender === event.recipient) &&
-        (value.recipient === socketId || value.recipient === event.recipient));
-    });
+    const index = allChats.findIndex(
+      (cht: ArrayLike<unknown> | { [s: string]: unknown }) => {
+        const value = Object.values(cht)[0] as Record<string, string>;
+        return ((value.sender === socketId ||
+          value.sender === event.recipient) &&
+          (value.recipient === socketId ||
+            value.recipient === event.recipient));
+      },
+    );
 
     const obj = allChats[index] as Record<string, unknown>;
     const [key, values] = Object.entries(obj)[0];
@@ -290,5 +293,90 @@ export function handleSendMsg(
     }
   } catch (error) {
     console.error(error.message);
+  }
+}
+
+export function handleLoadUsers(socket: WebSocket & { socketId: string }) {
+  let groups = getItem("groups");
+  if (groups) {
+    groups = groups.filter(
+      (group: ArrayLike<unknown> | { [s: string]: unknown }) => {
+        const values = Object.values(group)[0] as Record<
+          string,
+          string[]
+        >;
+        if (
+          values.members.find((m) => m === socket.socketId) !== undefined
+        ) {
+          return group;
+        }
+      },
+    );
+  }
+
+  send(socket, {
+    type: "load-groups",
+    groups: groups.map((g: Record<string, unknown>) => Object.keys(g)[0]),
+  });
+}
+
+export function handleLoadChats(
+  groupName: string,
+  socket: WebSocket & { socketId: string },
+) {
+  const groupChats = getItem("groups");
+  let chats;
+  if (groupChats) {
+    chats = groupChats.filter((group: Record<string, unknown>) =>
+      Object.keys(group)[0] === groupName
+    )[0];
+  }
+  send(socket, {
+    type: "load-group-chats",
+    payload: chats,
+  });
+}
+
+export function handleSendGroupMsg(
+  activeUsers: Map<string, WebSocket & { socketId: string }>,
+  socketId: string,
+  recipient: string,
+  message: string,
+) {
+  const allGroups = getItem("groups");
+
+  try {
+    const groupIndex = allGroups.findIndex((g: Record<string, unknown>) =>
+      Object.keys(g)[0] === recipient
+    );
+    const [groupName, object] = Object.entries(allGroups[groupIndex])[0];
+
+    const payload = {
+      ...object as Record<string, unknown>,
+      chats: [...object.chats, {
+        sender: socketId,
+        message,
+      }],
+    };
+    const obj: Record<string, unknown> = {};
+    obj[groupName] = payload;
+    allGroups[groupIndex] = obj;
+
+    for (const it of activeUsers) {
+      (object as Record<string, string[]>).members.forEach((member) => {
+        if (
+          member === it[0] &&
+          it[1].readyState !== 3
+        ) {
+          send(it[1], {
+            type: "send-group-msg",
+            payload,
+          });
+        }
+      });
+    }
+    setItem("groups", allGroups);
+  } catch (error) {
+    console.log(error.message);
   }
 }
